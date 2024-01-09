@@ -1,0 +1,26 @@
+{
+  "name": "fetch-fonts",
+  "version": "0.0.1",
+  "description": "Downloads Google Fonts for offline use",
+  "main": "fetch-fonts.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/drew-chase/fetch-fonts.git"
+  },
+  "keywords": [
+    "fetch",
+    "fonts",
+    "google",
+    "fonts",
+    "offline"
+  ],
+  "author": "Drew Chase",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/drew-chase/fetch-fonts/issues"
+  },
+  "homepage": "https://github.com/drew-chase/fetch-fonts#readme"
+}
