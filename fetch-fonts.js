@@ -29,8 +29,8 @@ https.get(url, (res) => {
                 await download(srcUrl, path.join(output, name));
                 css = css.replace(srcUrl, name);
             }
+            log("Exporting fonts.css...");
             fs.writeFileSync(path.join(output, "fonts.css"), css);
-
         });
     }
 });
