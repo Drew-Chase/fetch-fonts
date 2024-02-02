@@ -67,9 +67,6 @@ async function parseAndDownloadFonts(css) {
 
 // Execute the regular expression until it finds no more matches.
     while ((match = regex.exec(css)) !== null) {
-        // Log the match for debugging purposes
-        log(match);
-
         // Destructure the capture group matches into variables for readability.
         const [fontFamily, fontStyle, fontWeight, srcUrl] = match.slice(1, 5);
 
