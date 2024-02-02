@@ -24,7 +24,7 @@ The script will download the fonts and create a new CSS file in the same directo
 
 ## Contributing
 
-If you're interested in contributing to Fetch Fonts, please read our contributing guidelines.
+If you're interested in contributing to Fetch Fonts, please read our contributing guidelines. (Which there are none, so just make a pull request.
 
 ## License
 
