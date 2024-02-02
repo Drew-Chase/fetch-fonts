@@ -22,5 +22,8 @@
   "bugs": {
     "url": "https://github.com/drew-chase/fetch-fonts/issues"
   },
-  "homepage": "https://github.com/drew-chase/fetch-fonts#readme"
+  "homepage": "https://github.com/drew-chase/fetch-fonts#readme",
+  "dependencies": {
+    "csso": "^5.0.5"
+  }
 }
