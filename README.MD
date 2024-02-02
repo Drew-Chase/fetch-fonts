@@ -27,5 +27,4 @@ The script will download the fonts and create a new CSS file in the same directo
 If you're interested in contributing to Fetch Fonts, please read our contributing guidelines. (Which there are none, so just make a pull request.
 
 ## License
-
-Include information about your license here.
+This is licensed under GNU General Public License v3.0. For more information, see the [LICENSE](LICENSE) file.
