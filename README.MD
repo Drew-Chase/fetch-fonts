@@ -18,7 +18,7 @@ Fetch Fonts is a Node.js application designed to fetch and download fonts from a
 
 Run the script with the URL of the CSS file as an argument:
 ```bash
-node fetch-fonts.js https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100
+node fetch-fonts.js "https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100"
 ```
 The script will download the fonts and create a new CSS file in the same directory with the updated `@font-face` declarations.
 
