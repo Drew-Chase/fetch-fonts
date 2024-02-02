@@ -3,6 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const {log} = require('console');
+const {minify} = require("csso");
 
 // Set some constants - output directory and user agent.
 const outputPath = `${__dirname}/out/`;
@@ -60,43 +61,127 @@ async function processUrlContent(res) {
  * @returns {Promise<void>} - A promise that resolves when all fonts have been downloaded and the fonts.css file has been exported.
  */
 async function parseAndDownloadFonts(css) {
-    // Define the regular expression to match the @font-face rules in the CSS.
-    const regex = /@font-face\s*{\s*font-family:\s*'([^']*)';\s*font-style:\s*([^;]*);\s*font-weight:\s*([^;]*);\s*.*\s*src:\s*url\(([^)]+)\).*\s*}/g;
+    // Initialize an object to hold the current font-face value being parsed
+    let currentObject = null;
 
-    let match;
+    // Array to store all parsed font-face values
+    let fontFaces = [];
 
-// Execute the regular expression until it finds no more matches.
-    while ((match = regex.exec(css)) !== null) {
-        // Destructure the capture group matches into variables for readability.
-        const [fontFamily, fontStyle, fontWeight, srcUrl] = match.slice(1, 5);
+    // Split the css into individual lines for parsing
+    const lines = css.split('\n');
 
-        // Determine the font file type from the src URL.
-        const type = srcUrl.split('.').pop();
+    // Loop through each line in the split CSS
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
 
-        // Construct a font file name using the font's properties.
-        let fontName = `${fontFamily}-${fontStyle}-${fontWeight}.${type}`;
+        // If line contains a font-face declaration, start a new font-face object
+        if (line.includes('@font-face')) {
+            // If a currentObject exists, then add it to the fontFaces array
+            if (currentObject !== null) {
+                fontFaces.push(currentObject);
+            }
 
-        // Log an informative message to indicate the start of the download.
-        log(`Downloading ${fontName}...`);
-
-        try {
-            // Attempt to download the font file.
-            await download(srcUrl, path.join(outputPath, fontName));
-        } catch (e) {
-            // Log an error message if download failed.
-            log(`Failed to download ${fontName}`);
-            log(e);
+            // Reset currentObject to a new font-face structure
+            currentObject = {
+                fontFamily: '',
+                fontStyle: '',
+                fontWeight: '',
+                srcUrl: ''
+            };
         }
-
-        // Replace the src URL in the original CSS with the downloaded font file name.
-        css = css.replace(srcUrl, fontName);
+        // If line contains a font-family declaration, set the fontFamily property of the currentObject
+        else if (line.includes('font-family:')) {
+            currentObject.fontFamily = line.split('\'')[1];
+        }
+        // If line contains a font-style declaration, set the fontStyle property of the currentObject
+        else if (line.includes('font-style:')) {
+            currentObject.fontStyle = line.split(':')[1].trim();
+        }
+        // If line contains a font-weight declaration, set the fontWeight property of the currentObject
+        else if (line.includes('font-weight:')) {
+            currentObject.fontWeight = line.split(':')[1].trim();
+        }
+        // If line contains a src declaration, set the srcUrl property of the currentObject
+        else if (line.includes('src:')) {
+            currentObject.srcUrl = line.split('url(')[1].split(')')[0];
+        }
     }
 
-// Log a message to indicate the CSS export stage.
+    // After all lines have been processed, if there's a final currentObject, add it to the fontFaces array
+    if (currentObject !== null) {
+        fontFaces.push(currentObject);
+    }
+
+    // Log a message to indicate the font download stage.
+    css = buildFontFaceCSS(fontFaces);
+
+    // Log a message to indicate the font download stage.
+    log('Downloading fonts...');
+
+    // Loop through each font-face object in the fontFaces array
+    for (let i = 0; i < fontFaces.length; i++) {
+        const fontFace = fontFaces[i];
+        const fontFaceSrc = fontFace.srcUrl;
+        const fontFileName = getFontFaceFileName(fontFace);
+        const fontFilePath = path.join(outputPath, "fonts", fontFace.fontFamily, fontFileName);
+
+        // Create the font family directory if it doesn't exist
+        if (!fs.existsSync(path.join(outputPath, "fonts", fontFace.fontFamily))) {
+            fs.mkdirSync(path.join(outputPath, "fonts", fontFace.fontFamily), {recursive: true});
+        }
+
+        // Download the font file from the fontFaceSrc URL and save it to the outputPath/fonts directory
+        try {
+            await download(fontFaceSrc, fontFilePath);
+        } catch (e) {
+            log(`Failed to download ${fontFileName}:`, e);
+        }
+    }
+
+    // Log a message to indicate the CSS export stage.
     log('Exporting fonts.css...');
 
-// Write the modified CSS with the local font URLs to a file.
-    fs.writeFileSync(path.join(outputPath, "fonts.css"), css);
+    // Create the css directory if it doesn't exist
+    if (!fs.existsSync(path.join(outputPath, "css"))) {
+        fs.mkdirSync(path.join(outputPath, "css"), {recursive: true});
+    }
+
+    // Write the modified CSS with the local font URLs to a file.
+    fs.writeFileSync(path.join(outputPath, "css", "fonts.css"), css);
+}
+
+/**
+ * Builds CSS for @font-face rule based on the provided font faces.
+ *
+ * @param {Array} fontFaces - Array of font face objects.
+ * @param {string} fontFaces[].fontFamily - The font family name.
+ * @param {string} fontFaces[].fontStyle - The font style.
+ * @param {string} fontFaces[].fontWeight - The font weight.
+ * @param {string} fontFaces[].srcUrl - The URL of the font file.
+ * @returns {string} The minified CSS containing the @font-face rules.
+ */
+function buildFontFaceCSS(fontFaces) {
+    // Initialize CSS string
+    let css = '';
+    // Iterate over the font faces
+    for (let i = 0; i < fontFaces.length; i++) {
+        // Select the current font face
+        const fontFace = fontFaces[i];
+        // Fetch the URL from the font-face
+        const fontFaceSrc = fontFace.srcUrl;
+        // Split the URL into segments
+        const fontFaceSrcSplit = fontFaceSrc.split('/');
+        // Extract the font file extension from the last segment of the URL
+        const fontFileExtension = (fontFaceSrcSplit[fontFaceSrcSplit.length - 1]).split('.')[1];
+        // Get the filename of the font face
+        const fontFileName = getFontFaceFileName(fontFace);
+        // Construct the font path
+        const fontFilePath = `../fonts/${fontFace.fontFamily}/${fontFileName}`;
+        // Construct the CSS @font-face rule and append it to the CSS string
+        css += `@font-face {font-family: '${fontFace.fontFamily}';font-style: ${fontFace.fontStyle};font-weight: ${fontFace.fontWeight};src: url('${fontFilePath}') format('${fontFileExtension}');}\n`;
+    }
+    // Minify the CSS and return it
+    return minify(css).css;
 }
 
 /**
@@ -126,6 +211,33 @@ function download(url, outputPath) {
             res.pipe(writer).on('finish', resolve).on('error', reject);
         });
     });
+}
+
+/**
+ * The function creates a unique font face file name based on the font's properties.
+ * The naming convention for the file is: "fontfamily-fontstyle-fontweight.extension".
+ * @param {object} fontFace - Object containing properties of a font-face.
+ *   @property {string} fontFace.srcUrl - The source URL of the font file.
+ *   @property {string} fontFace.fontFamily - The font family name.
+ *   @property {string} fontFace.fontStyle - The font style.
+ *   @property {string} fontFace.fontWeight - The font weight.
+ * @return {string} Returns the file name for the font file, generated based on its properties.
+ */
+function getFontFaceFileName(fontFace) {
+    // Extract the source URL of the font file.
+    const fontFaceSrc = fontFace.srcUrl;
+
+    // Split the source URL into components using the slash as a separator
+    const fontFaceSrcSplit = fontFaceSrc.split('/');
+
+    // Extract the file extension from the last component of the split source URL
+    const fontFileExtension = (fontFaceSrcSplit[fontFaceSrcSplit.length - 1]).split('.')[1];
+
+    // Construct the file name for the font file, using its properties,
+    // replacing spaces in fontFamily with nothing,
+    // `-` between family, style, and weight, and finally attaching the file extension.
+    // Any extraneous semicolons are also removed from the file name to avoid potential file system issues.
+    return `${fontFace.fontFamily.replace(/ /g, '')}-${fontFace.fontStyle}-${fontFace.fontWeight}.${fontFileExtension}`.replace(/;/g, '');
 }
 
 getDataFromUrl(process.argv[2])
