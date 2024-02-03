@@ -19,13 +19,17 @@ app.get("/download", async (req, res) => {
     const tempDirectory = generateOutputPath();
     const url = req.query.url;
     await getDataFromUrl(url, tempDirectory).then((archivePath) => {
-        res.status(200);
-        res.download(archivePath, "fonts.zip", (err) => {
-            if (err) {
-                console.log(err);
-            }
-            cleanup(archivePath, tempDirectory);
-        });
+        if (archivePath == null) {
+            res.redirect("/?error=Invalid%20URL%20or%20No%20Fonts%20Found");
+        } else {
+            res.status(200);
+            res.download(archivePath, "fonts.zip", (err) => {
+                if (err) {
+                    console.log(err);
+                }
+                cleanup(archivePath, tempDirectory);
+            });
+        }
     });
 });
 
