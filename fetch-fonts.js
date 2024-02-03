@@ -1,69 +1,56 @@
 // Require the needed node modules.
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
-const {log} = require('console');
-const {minify} = require("csso");
-const guid = require('uuid');
+import https from 'https';
+import fs from 'fs';
+import {minify} from 'csso';
+import path from 'path';
+import {log} from 'console';
+import {v4 as guid} from 'uuid';
+import archiver from 'archiver';
+
 
 // Set some constants - output directory and user agent.
-const tmpDir = path.join(__dirname, 'tmp');
-const outputPath = path.join(tmpDir, guid.v4().replace(/-/g, ''), new Date().getTime().toString());
-const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0';
-
-// Create the output directory if not already exists.
-fs.mkdirSync(outputPath, {recursive: true});
+const tmpDir = path.join(path.resolve("./"), 'tmp');
 
 /**
- * Retrieves data from a specified URL using a GET request.
- *
- * @param {string} url - The URL from which to retrieve the data.
- * @returns {Promise<any>} - A promise that resolves with the response object if the request is successful, or rejects with an error if the request fails.
+ * Generates a unique output path for the downloaded fonts and the zip archive.
+ * @returns {string}
  */
-function getDataFromUrl(url) {
-    // The returned Promise is a way to handle asynchronous operations.
-    // It will resolve or reject depending on whether the HTTPS GET request is successful or not.
-    return new Promise((resolve, reject) => {
-
-        // Making the HTTPS GET request.
-        https.get(url, (res) => {
-
-            // If the HTTP status of the response is 200 (OK), the promise is resolved with the response object.
-            // If the status is anything else, the Promise is rejected with a new Error.
-            res.statusCode === 200 ? resolve(res) : reject(new Error('Failed to get data from URL'));
-        });
-    });
-}
+const generateOutputPath = () => path.join(tmpDir, guid().replace(/-/g, '') + new Date().getTime().toString());
 
 /**
- * Processes the content of the URL response.
+ * Retrieves data from the specified URL, parses and downloads fonts from the fetched data, and creates a zip archive.
  *
- * @param {IncomingMessage} res - The response object received from the URL request.
- * @returns {Promise<void>} - A promise that resolves when the content has been processed.
+ * @param {string} url - The URL to fetch the data from.
+ * @param {string} outputPath - The path where the downloaded fonts and the zip archive will be stored.
+ *
+ * @return {Promise<string>} - A promise that resolves to the created zip archive path containing the downloaded fonts.
  */
-async function processUrlContent(res) {
-    // Defining a variable to hold data from the server response
-    let data = "";
+async function getDataFromUrl(url, outputPath) {
+    if (!fs.existsSync(tmpDir)) {
+        // Create the output directory if not already exists.
+        fs.mkdirSync(tmpDir, {recursive: true});
+    }
 
-    // Listening for 'data' event which is fired whenever a chunk of data is received
-    res.on("data", (chunk) => (data += chunk));
+    if (!fs.existsSync(outputPath)) {
+        // Create the output directory if not already exists.
+        fs.mkdirSync(outputPath, {recursive: true});
+    }
 
-    // Listening for 'end' event which is fired when all data has been read and concatenating all chunks of data
-    res.on("end", async () => {
-        // Calling parseAndDownloadFonts function which parses the given CSS
-        // and downloads fonts specified in the @font-face rules
-        await parseAndDownloadFonts(data);
-        await createZipArchive(outputPath);
-    });
+    const response = await fetch(url);
+    const body = await response.text();
+    await parseAndDownloadFonts(body, outputPath);
+    return await createZipArchive(outputPath);
 }
+
 
 /**
  * Parses the given CSS and downloads fonts specified in the @font-face rules.
  *
  * @param {string} css - The CSS to parse and extract font information from.
+ * @param {string} outputPath - The root directory to output the css and font files.
  * @returns {Promise<void>} - A promise that resolves when all fonts have been downloaded and the fonts.css file has been exported.
  */
-async function parseAndDownloadFonts(css) {
+async function parseAndDownloadFonts(css, outputPath) {
     // Initialize an object to hold the current font-face value being parsed
     let currentObject = null;
 
@@ -150,7 +137,7 @@ async function parseAndDownloadFonts(css) {
     }
 
     // Write the modified CSS with the local font URLs to a file.
-    fs.writeFileSync(path.join(outputPath, "css", "fonts.css"), css);
+    fs.writeFileSync(path.join(outputPath, "css", "fonts.min.css"), css);
 }
 
 /**
@@ -198,15 +185,9 @@ function download(url, outputPath) {
     // Begins the function by returning a new Promise.
 // This Promise takes two parameters: resolve and reject.
     return new Promise((resolve, reject) => {
-        // This object literal stores the options for the HTTPS GET request, in this case, the User-Agent header.
-        const options = {
-            headers: {
-                'User-Agent': userAgent
-            }
-        };
         // The function sends an HTTP GET request with the defined options.
         // The URL for the GET request and the options for the request are passed as parameters.
-        https.get(url, options, (res) => {
+        https.get(url, {}, (res) => {
             // Here we create a writable stream, essentially creating the output file at the specified path.
             const writer = fs.createWriteStream(outputPath);
             // The server response (res) is piped to the write stream (writer).
@@ -250,11 +231,9 @@ function getFontFaceFileName(fontFace) {
  * @returns {Promise<string>} - A promise that resolves to the path of the created zip archive.
  */
 async function createZipArchive(directory) {
-    // Include the archiver package required for creating archives
-    const archiver = require('archiver');
-
     // Create a file path for the new zip file using current timestamp for file name. The zip file is stored in 'tmp' directory.
-    const filePath = path.join(__dirname, 'tmp', `${new Date().getTime()}.zip`);
+    const filePath = path.join(path.resolve("./"), 'tmp', `${guid()}${new Date().getTime()}.zip`);
+
 
     // Create a writable stream for the output file
     const output = fs.createWriteStream(filePath);
@@ -265,7 +244,7 @@ async function createZipArchive(directory) {
     });
 
     // Handle the event when output is closed
-    output.on('close', function () {
+    output.on('close', () => {
         // Log the total size of the archive in bytes
         console.log(archive.pointer() + ' total bytes');
         // Log a message to indicate that everything is finalized
@@ -273,11 +252,10 @@ async function createZipArchive(directory) {
     });
 
     // Specify the directory to be archived
-    archive.directory(directory, filePath, {name: 'fonts'})
+    archive.directory(directory, "", {name: 'fonts'})
 
     // Connect archive to the output (pipe from archive to output)
     archive.pipe(output);
-
 
     // Finalize the archive (i.e., stop accepting new data and finalize the ZIP file)
     await archive.finalize();
@@ -286,12 +264,23 @@ async function createZipArchive(directory) {
     return filePath;
 }
 
-function cleanup(archivePath) {
+/**
+ * Cleans up a directory by removing all files and subdirectories.
+ *
+ * @param {string} archivePath - The path to the directory to be cleaned up.
+ * @param {string} outputPath - The path to the output directory where the cleaned up files will be stored.
+ *
+ * @return {void} - This method does not return any value.
+ */
+function cleanup(archivePath, outputPath) {
+    // Remove the directory and all of its contents
     fs.rmdirSync(outputPath, {recursive: true});
-    fs.rmdirSync(path.join(__dirname, 'tmp'), {recursive: true});
-    fs.rmSync(archivePath);
+    // Remove the zip file
+    fs.unlinkSync(archivePath);
 }
 
-getDataFromUrl(process.argv[2])
-    .then(async res => await processUrlContent(res))
-    .catch(error => log('Failed to download:', error));
+export {
+    getDataFromUrl,
+    cleanup,
+    generateOutputPath
+}
