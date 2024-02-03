@@ -245,14 +245,14 @@ async function createZipArchive(directory) {
     // Create a file path for the new zip file using current timestamp for file name. The zip file is stored in 'tmp' directory.
     const filePath = path.join(path.resolve("./"), 'tmp', `${guid()}${new Date().getTime()}.zip`);
 
-
     // Create a writable stream for the output file
     const output = fs.createWriteStream(filePath);
 
     // Initialize archiver with zip format and high compression level
     const archive = archiver('zip', {
-        zlib: {level: 9} // Sets the compression level.
+        zlib: {level: 0}, // Sets the compression level.
     });
+
 
     // Specify the directory to be archived
     archive.directory(directory, "", {name: 'fonts'})
@@ -263,8 +263,12 @@ async function createZipArchive(directory) {
     // Finalize the archive (i.e., stop accepting new data and finalize the ZIP file)
     await archive.finalize();
 
-    // Return the path of the zip file
-    return filePath;
+    // Return a promise that resolves once the output has been fully written and closed
+    return new Promise((resolve, reject) => {
+        output.on('close', () => resolve(filePath));
+        output.on('error', reject);
+        output.close();
+    });
 }
 
 /**
