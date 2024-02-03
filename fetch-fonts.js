@@ -4,9 +4,11 @@ const fs = require('fs');
 const path = require('path');
 const {log} = require('console');
 const {minify} = require("csso");
+const guid = require('uuid');
 
 // Set some constants - output directory and user agent.
-const outputPath = `${__dirname}/out/`;
+const tmpDir = path.join(__dirname, 'tmp');
+const outputPath = path.join(tmpDir, guid.v4().replace(/-/g, ''), new Date().getTime().toString());
 const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0';
 
 // Create the output directory if not already exists.
@@ -36,7 +38,7 @@ function getDataFromUrl(url) {
 /**
  * Processes the content of the URL response.
  *
- * @param {http.IncomingMessage} res - The response object received from the URL request.
+ * @param {IncomingMessage} res - The response object received from the URL request.
  * @returns {Promise<void>} - A promise that resolves when the content has been processed.
  */
 async function processUrlContent(res) {
@@ -47,11 +49,12 @@ async function processUrlContent(res) {
     res.on("data", (chunk) => (data += chunk));
 
     // Listening for 'end' event which is fired when all data has been read and concatenating all chunks of data
-    await res.on("end", async () =>
+    res.on("end", async () => {
         // Calling parseAndDownloadFonts function which parses the given CSS
         // and downloads fonts specified in the @font-face rules
-        parseAndDownloadFonts(data)
-    );
+        await parseAndDownloadFonts(data);
+        await createZipArchive(outputPath);
+    });
 }
 
 /**
@@ -240,6 +243,55 @@ function getFontFaceFileName(fontFace) {
     return `${fontFace.fontFamily.replace(/ /g, '')}-${fontFace.fontStyle}-${fontFace.fontWeight}.${fontFileExtension}`.replace(/;/g, '');
 }
 
+/**
+ * Creates a zip archive from the specified directory.
+ *
+ * @param {string} directory - The directory path to create a zip archive from.
+ * @returns {Promise<string>} - A promise that resolves to the path of the created zip archive.
+ */
+async function createZipArchive(directory) {
+    // Include the archiver package required for creating archives
+    const archiver = require('archiver');
+
+    // Create a file path for the new zip file using current timestamp for file name. The zip file is stored in 'tmp' directory.
+    const filePath = path.join(__dirname, 'tmp', `${new Date().getTime()}.zip`);
+
+    // Create a writable stream for the output file
+    const output = fs.createWriteStream(filePath);
+
+    // Initialize archiver with zip format and high compression level
+    const archive = archiver('zip', {
+        zlib: {level: 9} // Sets the compression level.
+    });
+
+    // Handle the event when output is closed
+    output.on('close', function () {
+        // Log the total size of the archive in bytes
+        console.log(archive.pointer() + ' total bytes');
+        // Log a message to indicate that everything is finalized
+        console.log('archiver has been finalized and the output file descriptor has closed.');
+    });
+
+    // Specify the directory to be archived
+    archive.directory(directory, filePath, {name: 'fonts'})
+
+    // Connect archive to the output (pipe from archive to output)
+    archive.pipe(output);
+
+
+    // Finalize the archive (i.e., stop accepting new data and finalize the ZIP file)
+    await archive.finalize();
+
+    // Return the path of the zip file
+    return filePath;
+}
+
+function cleanup(archivePath) {
+    fs.rmdirSync(outputPath, {recursive: true});
+    fs.rmdirSync(path.join(__dirname, 'tmp'), {recursive: true});
+    fs.rmSync(archivePath);
+}
+
 getDataFromUrl(process.argv[2])
-    .then(res => processUrlContent(res))
+    .then(async res => await processUrlContent(res))
     .catch(error => log('Failed to download:', error));
