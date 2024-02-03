@@ -23,7 +23,7 @@ app.get("/download", async (req, res) => {
             res.redirect("/?error=Invalid%20URL%20or%20No%20Fonts%20Found");
         } else {
             res.status(200);
-            res.download(archivePath, "fonts.zip", (err) => {
+            res.download(archivePath,  (err) => {
                 if (err) {
                     console.log(err);
                 }
