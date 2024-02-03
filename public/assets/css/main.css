@@ -32,8 +32,7 @@ img#hero {
     position: absolute;
     top: 1rem;
     left: 1rem;
-    width: 7.996rem;
-    height: 4.25531rem;
+    width: 8rem;
     cursor: pointer;
 }
 
@@ -114,4 +113,55 @@ input:focus {
     font-weight: 600;
     margin-top: 1rem;
     font-style: italic;
+}
+
+#button-row {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+}
+
+#button-row img {
+    aspect-ratio: 1;
+    width: 5rem;
+    cursor: pointer;
+    transition: scale, opacity;
+    transition-duration: .2s;
+    opacity: .7;
+}
+
+#button-row img:hover {
+    opacity: 1;
+    scale: 1.1;
+}
+
+footer {
+    position: absolute;
+    opacity: .5;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    font-weight: 600;
+    transition: opacity;
+    transition-duration: .2s;
+    height: 4rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+footer:hover {
+    opacity: 1;
+}
+footer a{
+    color: unset;
+    text-decoration: none;
+    padding-inline: 5px;
+}
+a, footer:hover a {
+    color: var(--primary);
+    text-decoration: none;
+}
+footer a:hover{
+    text-decoration: underline !important;
 }
