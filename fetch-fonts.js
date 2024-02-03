@@ -27,6 +27,11 @@ const generateOutputPath = () => path.join(tmpDir, guid().replace(/-/g, '') + ne
  * @return {Promise<string>} - A promise that resolves to the created zip archive path containing the downloaded fonts.
  */
 async function getDataFromUrl(url, outputPath) {
+
+    if (!url.startsWith(("https://fonts.googleapis.com/css2?family="))) {
+        return null;
+    }
+
     // log(`Fetching data from ${url}...`)
 
     try {
