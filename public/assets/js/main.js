@@ -17,3 +17,8 @@ document.querySelector("input#search").addEventListener("focusin", async e => {
         console.log(`Clipboard access is not supported in your browser.`)
     }
 })
+
+if (window.location.search.includes("error")) {
+    document.querySelector("#error").innerText = decodeURIComponent(window.location.search.split("error=")[1]);
+    window.history.pushState({}, document.title, "/")
+}
