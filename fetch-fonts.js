@@ -6,6 +6,7 @@ import path from 'path';
 import {log} from 'console';
 import {v4 as guid} from 'uuid';
 import archiver from 'archiver';
+import fetch from 'node-fetch';
 
 
 // Set some constants - output directory and user agent.
@@ -26,20 +27,20 @@ const generateOutputPath = () => path.join(tmpDir, guid().replace(/-/g, '') + ne
  * @return {Promise<string>} - A promise that resolves to the created zip archive path containing the downloaded fonts.
  */
 async function getDataFromUrl(url, outputPath) {
-    if (!fs.existsSync(tmpDir)) {
-        // Create the output directory if not already exists.
-        fs.mkdirSync(tmpDir, {recursive: true});
-    }
+    // log(`Fetching data from ${url}...`)
 
-    if (!fs.existsSync(outputPath)) {
-        // Create the output directory if not already exists.
-        fs.mkdirSync(outputPath, {recursive: true});
+    try {
+        const response = await fetch(url);
+        if (response.ok) {
+            const body = await response.text();
+            await parseAndDownloadFonts(body, outputPath);
+            return await createZipArchive(outputPath);
+        } else {
+            return null;
+        }
+    } catch {
+        return null;
     }
-
-    const response = await fetch(url);
-    const body = await response.text();
-    await parseAndDownloadFonts(body, outputPath);
-    return await createZipArchive(outputPath);
 }
 
 
@@ -106,7 +107,12 @@ async function parseAndDownloadFonts(css, outputPath) {
     css = buildFontFaceCSS(fontFaces);
 
     // Log a message to indicate the font download stage.
-    log('Downloading fonts...');
+    // log('Downloading fonts...');
+
+    if (!fs.existsSync(outputPath)) {
+        // Create the output directory if not already exists.
+        fs.mkdirSync(outputPath, {recursive: true});
+    }
 
     // Loop through each font-face object in the fontFaces array
     for (let i = 0; i < fontFaces.length; i++) {
@@ -129,7 +135,7 @@ async function parseAndDownloadFonts(css, outputPath) {
     }
 
     // Log a message to indicate the CSS export stage.
-    log('Exporting fonts.css...');
+    // log('Exporting fonts.css...');
 
     // Create the css directory if it doesn't exist
     if (!fs.existsSync(path.join(outputPath, "css"))) {
@@ -241,14 +247,6 @@ async function createZipArchive(directory) {
     // Initialize archiver with zip format and high compression level
     const archive = archiver('zip', {
         zlib: {level: 9} // Sets the compression level.
-    });
-
-    // Handle the event when output is closed
-    output.on('close', () => {
-        // Log the total size of the archive in bytes
-        console.log(archive.pointer() + ' total bytes');
-        // Log a message to indicate that everything is finalized
-        console.log('archiver has been finalized and the output file descriptor has closed.');
     });
 
     // Specify the directory to be archived
