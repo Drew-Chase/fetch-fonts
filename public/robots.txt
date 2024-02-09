@@ -1,0 +1,8 @@
+User-agent: Googlebot
+Disallow: /assets/
+Disallow: /download
+
+User-agent: *
+Allow: /
+
+Sitemap: https://offlinefonts.com/sitemap.xml
