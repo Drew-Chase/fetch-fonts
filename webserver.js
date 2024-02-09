@@ -20,10 +20,10 @@ app.get("/download", async (req, res) => {
     const url = req.query.url;
     await getDataFromUrl(url, tempDirectory).then((archivePath) => {
         if (archivePath == null) {
-            res.redirect("/?error=Invalid%20URL%20or%20No%20Fonts%20Found");
+            res.redirect(`/?error=${encodeURIComponent("Invalid URL or No Fonts Found")}`);
         } else {
             res.status(200);
-            res.download(archivePath,  (err) => {
+            res.download(archivePath, (err) => {
                 if (err) {
                     console.log(err);
                 }
@@ -31,6 +31,17 @@ app.get("/download", async (req, res) => {
             });
         }
     });
+});
+
+app.get("/robots.txt", (req, res) => {
+    res.type("text/plain");
+    // return file robots.txt
+    res.sendFile(__dirname + "/robots.txt");
+});
+app.get("/sitemap.xml", (req, res) => {
+    res.type("text/xml");
+    // return file sitemap.xml
+    res.sendFile(__dirname + "/sitemap.xml");
 });
 
 app.listen(port, () => {
