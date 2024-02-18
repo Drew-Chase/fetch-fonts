@@ -182,7 +182,7 @@ function buildFontFaceCSS(fontFaces) {
         css += `@font-face {font-family: '${fontFace.fontFamily}';font-style: ${fontFace.fontStyle};font-weight: ${fontFace.fontWeight};src: url('${fontFilePath}') format('${fontFileExtension}');}\n`;
     }
     // Minify the CSS and return it
-    return minify(css).css;
+    return `/* Generated with Offline Fonts at https://offlinefonts.com */\n${minify(css).css}`;
 }
 
 /**
